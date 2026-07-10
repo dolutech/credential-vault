@@ -18,6 +18,10 @@ import (
 // Version is the current version of credential-vault.
 const Version = "0.3.0"
 
+// Shared bufio reader for all CLI input — avoids multiple buffered readers
+// competing for stdin data.
+var stdinReader = bufio.NewReader(os.Stdin)
+
 // passwordReader reads a password from the terminal without echoing it.
 // Uses golang.org/x/term for cross-platform hidden input (Linux, macOS, Windows).
 func passwordReader(prompt string) string {
@@ -32,8 +36,7 @@ func passwordReader(prompt string) string {
 		return string(pw)
 	}
 	// Fallback for non-terminal environments (e.g., piped input)
-	reader := bufio.NewReader(os.Stdin)
-	pw, _ := reader.ReadString('\n')
+	pw, _ := stdinReader.ReadString('\n')
 	return strings.TrimSpace(pw)
 }
 
@@ -74,8 +77,7 @@ func promptString(prompt, def string) string {
 	} else {
 		fmt.Fprintf(os.Stderr, "%s: ", prompt)
 	}
-	reader := bufio.NewReader(os.Stdin)
-	val, _ := reader.ReadString('\n')
+	val, _ := stdinReader.ReadString('\n')
 	val = strings.TrimSpace(val)
 	if val == "" {
 		return def
@@ -97,10 +99,11 @@ func promptInt(prompt string, def int) int {
 	return n
 }
 
-// readMultiLine reads multi-line input until EOF (Ctrl+D).
+// readMultiLine reads multi-line input until EOF.
+// Uses the shared stdinReader so it doesn't compete with other readers.
 func readMultiLine(prompt string) string {
 	fmt.Fprintf(os.Stderr, "%s (Ctrl+D to finish):\n", prompt)
-	data, err := io.ReadAll(os.Stdin)
+	data, err := io.ReadAll(stdinReader)
 	if err != nil {
 		return ""
 	}
@@ -151,8 +154,7 @@ func cmdInit() error {
 
 	// Confirm password
 	fmt.Fprint(os.Stderr, "Confirm master password: ")
-	reader := bufio.NewReader(os.Stdin)
-	confirm, _ := reader.ReadString('\n')
+	confirm, _ := stdinReader.ReadString('\n')
 	confirm = strings.TrimSpace(confirm)
 	if pw != confirm {
 		return fmt.Errorf("passwords do not match")
@@ -194,48 +196,75 @@ func cmdAdd(args []string) error {
 		user = "root"
 	}
 
-	fmt.Fprint(os.Stderr, "Password (leave empty to use private key): ")
-	reader := bufio.NewReader(os.Stdin)
-	pw, _ := reader.ReadString('\n')
-	pw = strings.TrimSpace(pw)
+	// --- Authentication method selection ---
+	fmt.Fprintln(os.Stderr, "\nAuthentication method:")
+	fmt.Fprintln(os.Stderr, "  1 - Password")
+	fmt.Fprintln(os.Stderr, "  2 - Private key (paste content)")
+	fmt.Fprintln(os.Stderr, "  3 - Private key file (path on disk)")
+	fmt.Fprintln(os.Stderr, "  4 - Private key + SSH certificate")
+	fmt.Fprint(os.Stderr, "Choose [1-4]: ")
 
+	authChoice, _ := stdinReader.ReadString('\n')
+	authChoice = strings.TrimSpace(authChoice)
+	if authChoice == "" {
+		authChoice = "1" // default to password
+	}
+
+	var pw string
 	var privateKey string
 	var privateKeyPath string
 	var passphrase string
 	var certificate string
 
-	if pw == "" {
-		fmt.Fprint(os.Stderr, "Private key file path (leave empty to paste key content): ")
-		keyPath, _ := reader.ReadString('\n')
-		keyPath = strings.TrimSpace(keyPath)
-
-		if keyPath != "" {
-			privateKeyPath = keyPath
-		} else {
-			privateKey = readMultiLine("Paste private key content")
+	switch authChoice {
+	case "1":
+		// Password
+		fmt.Fprint(os.Stderr, "Password: ")
+		pwLine, _ := stdinReader.ReadString('\n')
+		pw = strings.TrimSpace(pwLine)
+		if pw == "" {
+			return fmt.Errorf("password cannot be empty")
 		}
 
-		// Ask for passphrase (for encrypted private keys)
-		fmt.Fprint(os.Stderr, "Passphrase for private key (leave empty if no passphrase): ")
-		ph, _ := reader.ReadString('\n')
+	case "2":
+		// Private key (paste content)
+		privateKey = readMultiLine("Paste private key content")
+		if privateKey == "" {
+			return fmt.Errorf("private key cannot be empty")
+		}
+		fmt.Fprint(os.Stderr, "Passphrase for private key (leave empty if none): ")
+		ph, _ := stdinReader.ReadString('\n')
 		passphrase = strings.TrimSpace(ph)
 
-		// Ask for SSH certificate (optional)
-		fmt.Fprint(os.Stderr, "SSH certificate (leave empty if not using certificates): ")
-		cert, _ := reader.ReadString('\n')
-		cert = strings.TrimSpace(cert)
-		if cert == "" {
-			// Check if user wants to paste certificate content (multi-line)
-			fmt.Fprint(os.Stderr, "Paste SSH certificate content? (leave empty to skip): ")
-			certCheck, _ := reader.ReadString('\n')
-			certCheck = strings.TrimSpace(certCheck)
-			if certCheck != "" {
-				certificate = readMultiLine("Paste SSH certificate content")
-			}
-		} else {
-			// Single-line certificate path or content
-			certificate = cert
+	case "3":
+		// Private key file path
+		fmt.Fprint(os.Stderr, "Path to private key file: ")
+		keyPath, _ := stdinReader.ReadString('\n')
+		keyPath = strings.TrimSpace(keyPath)
+		if keyPath == "" {
+			return fmt.Errorf("key file path cannot be empty")
 		}
+		privateKeyPath = keyPath
+		fmt.Fprint(os.Stderr, "Passphrase for private key (leave empty if none): ")
+		ph, _ := stdinReader.ReadString('\n')
+		passphrase = strings.TrimSpace(ph)
+
+	case "4":
+		// Private key + SSH certificate
+		privateKey = readMultiLine("Paste private key content")
+		if privateKey == "" {
+			return fmt.Errorf("private key cannot be empty")
+		}
+		fmt.Fprint(os.Stderr, "Passphrase for private key (leave empty if none): ")
+		ph, _ := stdinReader.ReadString('\n')
+		passphrase = strings.TrimSpace(ph)
+		certificate = readMultiLine("Paste SSH certificate content")
+		if certificate == "" {
+			return fmt.Errorf("certificate cannot be empty")
+		}
+
+	default:
+		return fmt.Errorf("invalid choice: %s (use 1-4)", authChoice)
 	}
 
 	description := promptString("Description (optional)", "")
