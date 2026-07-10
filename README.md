@@ -5,7 +5,7 @@
 Store server credentials (SSH) in an encrypted vault and let your AI assistant (via MCP) deploy to servers **without ever exposing passwords or private keys in the LLM context**.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](https://dolutech.com)
+[![Version](https://img.shields.io/badge/version-0.2.0-green.svg)](https://dolutech.com)
 
 > Built by [Dolutech](https://dolutech.com) — secure infrastructure tools for developers.
 
@@ -290,7 +290,7 @@ Visit our blog: [dolutech.com](https://dolutech.com)
 Armazene credenciais de servidores (SSH) num cofre encriptado e permita que seu assistente de IA (via MCP) faça deploy em servidores **sem nunca expor senhas ou chaves privadas no contexto do LLM**.
 
 [![Licença: MIT](https://img.shields.io/badge/Licença-MIT-blue.svg)](LICENSE)
-[![Versão](https://img.shields.io/badge/versão-0.1.0-green.svg)](https://dolutech.com)
+[![Versão](https://img.shields.io/badge/versão-0.2.0-green.svg)](https://dolutech.com)
 
 > Desenvolvido pela [Dolutech](https://dolutech.com) — ferramentas de infraestrutura segura para desenvolvedores.
 

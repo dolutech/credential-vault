@@ -16,7 +16,7 @@ import (
 )
 
 // Version is the current version of credential-vault.
-const Version = "0.1.0"
+const Version = "0.2.0"
 
 // passwordReader reads a password from the terminal without echoing it.
 // Uses golang.org/x/term for cross-platform hidden input (Linux, macOS, Windows).

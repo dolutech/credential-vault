@@ -18,7 +18,7 @@ import (
 func Serve(vault *store.Vault) error {
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "credential-vault",
-		Version: "1.0.0",
+		Version: "0.2.0",
 	}, &mcp.ServerOptions{
 		Capabilities: &mcp.ServerCapabilities{
 			Tools: &mcp.ToolCapabilities{ListChanged: true},
