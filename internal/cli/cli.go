@@ -16,7 +16,7 @@ import (
 )
 
 // Version is the current version of credential-vault.
-const Version = "0.2.0"
+const Version = "0.3.0"
 
 // passwordReader reads a password from the terminal without echoing it.
 // Uses golang.org/x/term for cross-platform hidden input (Linux, macOS, Windows).
@@ -200,19 +200,56 @@ func cmdAdd(args []string) error {
 	pw = strings.TrimSpace(pw)
 
 	var privateKey string
+	var privateKeyPath string
+	var passphrase string
+	var certificate string
+
 	if pw == "" {
-		privateKey = readMultiLine("Paste private key content")
+		fmt.Fprint(os.Stderr, "Private key file path (leave empty to paste key content): ")
+		keyPath, _ := reader.ReadString('\n')
+		keyPath = strings.TrimSpace(keyPath)
+
+		if keyPath != "" {
+			privateKeyPath = keyPath
+		} else {
+			privateKey = readMultiLine("Paste private key content")
+		}
+
+		// Ask for passphrase (for encrypted private keys)
+		fmt.Fprint(os.Stderr, "Passphrase for private key (leave empty if no passphrase): ")
+		ph, _ := reader.ReadString('\n')
+		passphrase = strings.TrimSpace(ph)
+
+		// Ask for SSH certificate (optional)
+		fmt.Fprint(os.Stderr, "SSH certificate (leave empty if not using certificates): ")
+		cert, _ := reader.ReadString('\n')
+		cert = strings.TrimSpace(cert)
+		if cert == "" {
+			// Check if user wants to paste certificate content (multi-line)
+			fmt.Fprint(os.Stderr, "Paste SSH certificate content? (leave empty to skip): ")
+			certCheck, _ := reader.ReadString('\n')
+			certCheck = strings.TrimSpace(certCheck)
+			if certCheck != "" {
+				certificate = readMultiLine("Paste SSH certificate content")
+			}
+		} else {
+			// Single-line certificate path or content
+			certificate = cert
+		}
 	}
 
 	description := promptString("Description (optional)", "")
 
 	creds := store.ServerCredentials{
-		Host:        host,
-		Port:        port,
-		User:        user,
-		Password:    pw,
-		PrivateKey:  privateKey,
-		Description: description,
+		Host:           host,
+		Port:           port,
+		User:           user,
+		Password:       pw,
+		PrivateKey:     privateKey,
+		PrivateKeyPath: privateKeyPath,
+		Passphrase:     passphrase,
+		Certificate:    certificate,
+		Description:    description,
 	}
 
 	if err := vault.AddServer(name, creds); err != nil {

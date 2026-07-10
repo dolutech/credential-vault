@@ -53,7 +53,7 @@ make release     # create release archives in dist/
 
 ```bash
 ./credential-vault --version
-# credential-vault v0.2.0
+# credential-vault v0.3.0
 ```
 
 ---
@@ -574,7 +574,7 @@ make release     # criar pacotes de release em dist/
 
 ```bash
 ./credential-vault --version
-# credential-vault v0.2.0
+# credential-vault v0.3.0
 ```
 
 ---

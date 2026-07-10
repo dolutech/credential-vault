@@ -33,7 +33,7 @@ func TestMCPServerIntegration(t *testing.T) {
 
 	client := mcp.NewClient(&mcp.Implementation{
 		Name:    "test-client",
-		Version: "0.2.0",
+		Version: "0.3.0",
 	}, nil)
 
 	session, err := client.Connect(ctx, transport, nil)

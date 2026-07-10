@@ -18,12 +18,15 @@ const VaultVersion = 1
 
 // ServerCredentials holds the connection details for a single server.
 type ServerCredentials struct {
-	Host        string `json:"host"`
-	Port        int    `json:"port"`
-	User        string `json:"user"`
-	Password    string `json:"password,omitempty"`
-	PrivateKey  string `json:"private_key,omitempty"`
-	Description string `json:"description,omitempty"`
+	Host          string `json:"host"`
+	Port          int    `json:"port"`
+	User          string `json:"user"`
+	Password      string `json:"password,omitempty"`
+	PrivateKey    string `json:"private_key,omitempty"`
+	PrivateKeyPath string `json:"private_key_path,omitempty"` // path to key file on disk
+	Passphrase    string `json:"passphrase,omitempty"`        // passphrase for encrypted private keys
+	Certificate   string `json:"certificate,omitempty"`        // SSH certificate content (PEM)
+	Description   string `json:"description,omitempty"`
 }
 
 // VaultData is the in-memory structure that gets encrypted.

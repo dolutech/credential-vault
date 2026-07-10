@@ -46,6 +46,30 @@ func knownHostsCallback() ssh.HostKeyCallback {
 	return callback
 }
 
+// createCertSigner wraps a private key signer with an SSH certificate,
+// enabling certificate-based SSH authentication.
+func createCertSigner(signer ssh.Signer, certPEM string) (ssh.Signer, error) {
+	// Parse the OpenSSH certificate from PEM format
+	cert, _, _, _, err := ssh.ParseAuthorizedKey([]byte(certPEM))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse certificate: %w", err)
+	}
+
+	// Ensure it's actually a certificate
+	certKey, ok := cert.(*ssh.Certificate)
+	if !ok {
+		return nil, fmt.Errorf("the provided key is not an SSH certificate")
+	}
+
+	// Create a CertSigner that combines the private key with the certificate
+	certSigner, err := ssh.NewCertSigner(certKey, signer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create certificate signer: %w", err)
+	}
+
+	return certSigner, nil
+}
+
 // Connect establishes an SSH session using the provided credentials.
 func Connect(creds *store.ServerCredentials) (*ssh.Session, error) {
 	if creds.Host == "" {
@@ -62,13 +86,40 @@ func Connect(creds *store.ServerCredentials) (*ssh.Session, error) {
 
 	authMethods := []ssh.AuthMethod{}
 
-	// Try private key first, then password
-	if creds.PrivateKey != "" {
-		signer, err := ssh.ParsePrivateKey([]byte(creds.PrivateKey))
+	// Determine private key content: inline content or read from file path
+	keyContent := creds.PrivateKey
+	if keyContent == "" && creds.PrivateKeyPath != "" {
+		data, err := os.ReadFile(creds.PrivateKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read private key file '%s': %w", creds.PrivateKeyPath, err)
+		}
+		keyContent = string(data)
+	}
+
+	// Parse private key (with or without passphrase) and optional certificate
+	if keyContent != "" {
+		var signer ssh.Signer
+		var err error
+
+		if creds.Passphrase != "" {
+			signer, err = ssh.ParsePrivateKeyWithPassphrase([]byte(keyContent), []byte(creds.Passphrase))
+		} else {
+			signer, err = ssh.ParsePrivateKey([]byte(keyContent))
+		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse private key: %w", err)
 		}
-		authMethods = append(authMethods, ssh.PublicKeys(signer))
+
+		// If a certificate is provided, wrap the signer with the certificate
+		if creds.Certificate != "" {
+			certSigner, certErr := createCertSigner(signer, creds.Certificate)
+			if certErr != nil {
+				return nil, fmt.Errorf("failed to use SSH certificate: %w", certErr)
+			}
+			authMethods = append(authMethods, ssh.PublicKeys(certSigner))
+		} else {
+			authMethods = append(authMethods, ssh.PublicKeys(signer))
+		}
 	}
 
 	if creds.Password != "" {
