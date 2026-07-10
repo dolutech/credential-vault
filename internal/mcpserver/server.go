@@ -19,13 +19,17 @@ func Serve(vault *store.Vault) error {
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "credential-vault",
 		Version: "1.0.0",
-	}, nil)
+	}, &mcp.ServerOptions{
+		Capabilities: &mcp.ServerCapabilities{
+			Tools: &mcp.ToolCapabilities{ListChanged: true},
+		},
+	})
 
 	// Tool: list_servers
 	mcp.AddTool(server,
 		&mcp.Tool{
 			Name:        "list_servers",
-			Description: "Lista os nomes e descrições dos servidores cadastrados no vault. Não expõe credenciais (host, usuário, senha).",
+			Description: "Lists server names and descriptions registered in the vault. No credentials are exposed.",
 		},
 		handleListServers(vault),
 	)
@@ -34,7 +38,7 @@ func Serve(vault *store.Vault) error {
 	mcp.AddTool(server,
 		&mcp.Tool{
 			Name:        "get_connection_info",
-			Description: "Retorna informações de conexão seguras (host, porta, usuário, descrição) de um servidor. NÃO retorna a senha nem a chave privada.",
+			Description: "Returns safe connection info (host, port, user, description) for a server. Does NOT return the password or private key.",
 		},
 		handleGetConnectionInfo(vault),
 	)
@@ -43,7 +47,7 @@ func Serve(vault *store.Vault) error {
 	mcp.AddTool(server,
 		&mcp.Tool{
 			Name:        "deploy",
-			Description: "Conecta via SSH ao servidor especificado e executa um comando de deploy. As credenciais são lidas do vault e nunca expostas no contexto do LLM.",
+			Description: "Connects via SSH to the specified server and executes a deploy command. Credentials are read from the vault and never exposed to the LLM.",
 		},
 		handleDeploy(vault),
 	)
@@ -52,7 +56,7 @@ func Serve(vault *store.Vault) error {
 	mcp.AddTool(server,
 		&mcp.Tool{
 			Name:        "ssh_exec",
-			Description: "Executa um comando arbitrário via SSH no servidor especificado. As credenciais são lidas do vault internamente e nunca expostas.",
+			Description: "Executes an arbitrary command via SSH on the specified server. Credentials are read from the vault internally and never exposed.",
 		},
 		handleSSHExec(vault),
 	)
